@@ -31,13 +31,16 @@ public class ToDoController {
     }
 
     @PostMapping("/create/task/{task}")
-    public Mono<ToDo> createToDo(@PathVariable("task") String task){
-        return service.addTask(task);
+    public Mono<ResponseEntity<ToDo>> createToDo(@PathVariable("task") String task) {
+        return service.addTask(task)
+                .map(todo -> ResponseEntity.status(HttpStatus.CREATED).body(todo))
+                .onErrorResume(error -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).build()));
     }
-
     @GetMapping("/get/all")
-    public Flux<ToDo> getAllTasks(){
-        return service.getTasks();
+    public Flux<ResponseEntity<ToDo>> getAllTasks(){
+        return service.getTasks()
+                .map(ResponseEntity::ok)
+                .onErrorResume(error -> Flux.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()));
     }
 
     @PutMapping("update/task/{id}/{newTask}")
@@ -49,4 +52,17 @@ public class ToDoController {
                     return Mono.just(new ResponseEntity<>(HttpStatus.BAD_REQUEST));
                 });
     }
+    @DeleteMapping("/delete/task/{id}")
+    public Mono<ResponseEntity<String>> deleteTask(@PathVariable("id") String id) {
+        return service.deleteTask(id)
+                .map(deleted -> {
+                    if (deleted) {
+                        return ResponseEntity.ok("Task deleted successfully");
+                    } else {
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Task not found");
+                    }
+                })
+                .onErrorResume(error -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error occurred: " + error.getMessage())));
+    }
+
 }
